@@ -1,0 +1,177 @@
+---
+title: "Práctica Análisis Exploratorio R"
+author: "Arturo Casado Castilla"
+date: "20/12/2016"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+## 1. Introducción 
+
+Con este dataset pretendo ver como influye el consumo de alcohol (diario / fin de semana) en la nota final de los alumnos.
+
+```{r Introducción}
+
+#Utilizo getwd() para obtener el work directory.
+
+#Limpio el espacio de trabajo con rm(list=ls()).
+
+knitr::opts_chunk$set(echo = TRUE);
+rm(list=ls());
+currentDir <- getwd();
+if (!file.exists(currentDir)) {
+                 dir.create(currentDir);
+}
+
+
+#Cargo las librerias que voy a necesitar
+
+
+librerias <- c("ggplot2","plyr", "dplyr", "gridExtra", "alluvial","extrafont");
+  
+for (i in librerias){
+    if(!require(i, character.only = TRUE)) 
+            { 
+                install.packages(i); 
+                library(i);
+            }
+}
+
+#Descargo los ficheros csv y los descomprimo en mi wd.
+
+fileUrl <- "https://archive.ics.uci.edu/ml/machine-learning-databases/00320/student.zip";
+download.file(fileUrl,destfile="./student.zip" ,method="curl");
+unzip("./student.zip", exdir="./");
+```
+
+## 2. Carga de los datos
+
+```{r Carga de los datos}
+#Leo el fichero student-por.csv con la funcion read.table()
+
+
+studentPor <- read.table("./student-por.csv", row.names = NULL, sep=";", header = TRUE);
+
+#Leo el fichero student-mat.csv con la funcion read.table()
+
+studentMat <- read.table("./student-mat.csv", row.names = NULL, sep=";", header = TRUE);
+
+
+```
+
+## 3. Análisis descriptivo
+
+```{r Análisis descriptivo}
+
+#Utilizo la funcion head() para ver el contenido del dataset.
+
+head(studentPor[,1:5]);
+
+#La funcion names() para ver el nombre de todas las columnas.
+
+names(studentPor);
+
+#La función dim() para ver las dimensiones.
+
+dim(studentPor);
+
+head(studentMat[,1:5])
+
+names(studentMat)
+
+dim(studentMat);
+
+```
+
+## 4. Análisis exploratorio
+
+```{r Análisis exploratorio 1}
+#Utilizo la función mapvalues para cambiar el nombre a los valores de Dalc y Walc.
+
+studentPor$Dalc <- as.factor(studentPor$Dalc)      
+studentPor$Dalc <- mapvalues(studentPor$Dalc, 
+                              from = 1:5, 
+                              to = c("Muy Bajo", "Bajo", "Medio", "Alto", "Muy Alto"))
+
+studentPor$Walc <- as.factor(studentPor$Walc)      
+studentPor$Walc <- mapvalues(studentPor$Walc, 
+                              from = 1:5, 
+                              to = c("Muy Bajo", "Bajo", "Medio", "Alto", "Muy Alto"))
+
+studentMat$Dalc <- as.factor(studentMat$Dalc)      
+studentMat$Dalc <- mapvalues(studentMat$Dalc, 
+                              from = 1:5, 
+                              to = c("Muy Bajo", "Bajo", "Medio", "Alto", "Muy Alto"))
+
+studentMat$Walc <- as.factor(studentMat$Walc)      
+studentMat$Walc <- mapvalues(studentMat$Walc, 
+                              from = 1:5, 
+                              to = c("Muy Bajo", "Bajo", "Medio", "Alto", "Muy Alto"))
+
+```
+
+Utilizo ggplot para mostrar los resultados de combinar el consumo de alcohol (diario / fin de semana) con las notas finales de ambos datasets.
+
+```{r Análisis exploratorio 2}
+
+
+
+#studentPor Dalc comparado con studentPor Walc
+
+studentPor.g3.Dalc <- ggplot(studentPor, aes(x=Dalc, y=G3, fill=Dalc))+
+      geom_boxplot()+
+      theme_bw()+
+      theme(legend.position="none")+
+      scale_fill_manual(values = c("green", "darkgreen","blue","darkred","red")) +
+      xlab("Consumo de Alcohol")+
+      ylab("Notas")+
+      ggtitle("Nota Final Por Dalc")
+
+studentPor.g3.Walc <- ggplot(studentPor, aes(x=Walc, y=G3, fill=Walc))+
+      geom_boxplot()+
+      theme_bw()+
+      theme(legend.position="none")+
+      scale_fill_manual(values = c("green", "darkgreen","blue","darkred","red")) +
+      xlab("Consumo de Alcohol")+
+      ylab("Notas")+
+      ggtitle("Nota Final Por Walc")
+
+grid.arrange(studentPor.g3.Dalc, studentPor.g3.Walc,ncol=2);
+
+
+#studentMat Dalc comparado con studentMat Walc
+
+
+studentMat.g3.Dalc <- ggplot(studentMat, aes(x=Dalc, y=G3, fill=Dalc))+
+      geom_boxplot()+
+      theme_bw()+
+      theme(legend.position="none")+
+      scale_fill_manual(values = c("green", "darkgreen","blue","darkred","red")) +
+      xlab("Consumo de Alcohol")+
+      ylab("Notas")+
+      ggtitle("Nota Final Mat Dalc")
+
+studentMat.g3.Walc <- ggplot(studentMat, aes(x=Walc, y=G3, fill=Walc))+
+      geom_boxplot()+
+      theme_bw()+
+      theme(legend.position="none")+
+      scale_fill_manual(values = c("green", "darkgreen","blue","darkred","red")) +
+      xlab("Consumo de Alcohol")+
+      ylab("Notas")+
+      ggtitle("Nota Final Mat Walc")
+
+grid.arrange(studentMat.g3.Dalc, studentMat.g3.Walc,ncol=2);
+
+```
+
+
+## 5. Conclusiones
+
+Cómo conclusión saco que el consumo de alcohol (alto y muy alto) tanto entre semana como los fines de semana, influye negaticamente en las notas de los alumnos de portugués
+
+En cuanto a las conclusiones del consumo de alcohol y las notas de los alumnos de matemáticas, son un poco más confusas.
+Los alumnos que consumen diariamente (muy alto) son una población parecida al consumo bajo y aprueban más.
+En cuanto al consumo los fines de semana,la población de consumo muy alto aumenta considerablemnte y los aprobados disminuyen.
+
+
