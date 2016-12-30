@@ -1,0 +1,164 @@
+---
+title: "Practica_Preparacion_y_Manipulacion_Datos_con_R"
+author: "Arturo Casado Castilla"
+date: "25/12/2016"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+## 1. Objetivo: Limpiar el dataset y prepararlo para posibles análisis/modelos.
+
+
+## 2. Lectura del dataset en R.
+
+```{r Leer dataset, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE);
+
+ls();
+rm(list=ls());
+currentDir <- getwd();
+if (!file.exists(currentDir)) {
+                 dir.create(currentDir);
+}
+
+#Cargo las librerías necesarias
+librerias <- c("xlsx","stringr","dplyr","zoo","tm","ggplot2","gridExtra");
+for (i in librerias){
+    if(!require(i, character.only = TRUE)) 
+            { 
+                install.packages(i); 
+                library(i);
+            }
+}
+```
+
+```{r Leer dataset 1, echo=TRUE}
+#Cargo el dataset para una primera observación
+messy.dataset <- read.xlsx2("./EXAMPLE_DataToClean.xlsx", sheetIndex=1);
+
+#Hago una copia del dataset original para no pisar los datos originales
+copia.messy.dataset <- messy.dataset;
+```
+
+
+## 3. Acciones de limpieza explicadas en texto y codificadas en R.
+
+```{r}
+
+#Renombro el nombre de las columnas por comodidad
+colnames(copia.messy.dataset) <- c("Year", "Area","Street_1","Street_2","Other_Info");
+names(copia.messy.dataset);
+
+#Utilizo la función gsub() para sustituir el carácter å por un espacio.
+copia.messy.dataset$Street_1 <- gsub("å", " ", copia.messy.dataset$Street_1);
+
+#Eilimino los espacios en blanco con str_trim(). 
+copia.messy.dataset$Street_1 <- str_trim(copia.messy.dataset$Street_1);
+
+#Pongo en mayúsculas la columna Street 1.
+copia.messy.dataset$Street_1 <- str_to_upper(copia.messy.dataset$Street_1);
+
+#Elimino caracteres especiales de la codificación, como saltos de línea y tabulaciones.
+copia.messy.dataset$Street_1 <- gsub("[[:cntrl:]]", " ", copia.messy.dataset$Street_1);
+
+#Elimino la puntuación.
+copia.messy.dataset$Street_1 <- removePunctuation(copia.messy.dataset$Street_1);
+
+#Elimino los espacios vacios excesivos.
+copia.messy.dataset$Street_1 <- stripWhitespace(copia.messy.dataset$Street_1);
+
+
+#Utilizo la función gsub() para sustituir el ST por STREET y RD por ROAD.
+copia.messy.dataset$Street_1 <- gsub(" ST ", " STREET ", copia.messy.dataset$Street_1);
+copia.messy.dataset$Street_1 <- gsub(" ST", " STREET", copia.messy.dataset$Street_1);
+copia.messy.dataset$Street_1 <- gsub(" RD", " ROAD", copia.messy.dataset$Street_1);
+copia.messy.dataset$Street_1 <- gsub(" RD ", " ROAD ", copia.messy.dataset$Street_1);
+
+#Elimino signos de puntuación.
+copia.messy.dataset$Street_1 <- gsub("\\.", "", copia.messy.dataset$Street_1);
+copia.messy.dataset$Street_1 <- gsub("\\,", "", copia.messy.dataset$Street_1);
+copia.messy.dataset$Street_1 <- gsub("\\`", "", copia.messy.dataset$Street_1);
+
+
+#Cambio los registros vacios por NA utilizando sapply().
+copia.messy.dataset$Area <- sapply(copia.messy.dataset$Area, function(x){is.na(x)<-which(x == '');x});
+
+#Elimino la columna Other_Info porque no contiene datos relevantes.
+copia.messy.dataset <- copia.messy.dataset[,-5];
+
+#Elimino la columna Street_2 al estar duplicada.
+copia.messy.dataset <- copia.messy.dataset[,-4];
+
+#Utilizo la funcion na.locf() para autocompletar los registros de la columna Area.
+copia.messy.dataset$Area <- na.locf(copia.messy.dataset$Area);
+
+```
+
+```{r, include=FALSE}
+#Obtengo los registros duplicados.
+anyDuplicated(copia.messy.dataset);
+
+#Elimino los registros dulplicados utilizando el paquete dplyr.
+copia.messy.dataset <- copia.messy.dataset %>% distinct;
+```
+
+
+
+## 4. Exportar desde R a un fichero local, el dataset limpio resultante.
+
+```{r}
+
+#Exporto el dataset a un fichero local.
+outputDir <- getwd();
+if (!file.exists(outputDir)) {
+ dir.create(outputDir);
+ }
+write.table(copia.messy.dataset, file=paste(outputDir, "tiddyDataset.csv", sep="/"), sep=";",row.names=FALSE);
+
+
+```
+
+
+## 5. Conclusiones.
+
+
+He eliminado la última columna porque no tenía datos de interés, también he elimnado la columna Street_2 porque los datos estaban duplicados en la columna Street_1.
+
+He reducido el dataset de 5279 a 3350 registros, aun así creo que se podría reducir bastante más porque hay calles mal escritas, con variaciones en su nombre, etc... pero no he sabido como reconocer esos patrones.
+
+
+
+## 6. Opcionalmente, se pueden incluir gráficos si se consideraran necesarios.
+
+```{r}
+
+#Agrupo el dataset por Año y Area.
+copia.messy.dataset.groupBy <- copia.messy.dataset %>% group_by(Year,Area) %>% summarise(Streets=n());
+
+copia.tiddy.dataset.2011 <- subset(copia.messy.dataset.groupBy, copia.messy.dataset.groupBy$Year=="2011")
+copia.tiddy.dataset.2012 <- subset(copia.messy.dataset.groupBy, copia.messy.dataset.groupBy$Year=="2012")
+      
+grafico.2011 <- ggplot(data=copia.tiddy.dataset.2011, aes(x=copia.tiddy.dataset.2011$Area, y=copia.tiddy.dataset.2011$Streets, fill=copia.tiddy.dataset.2011$Year)) + 
+    geom_bar(colour="black",  width=.8, stat="identity") + 
+    guides(fill=FALSE) +
+    xlab("Area") + 
+    ylab("Num Streets")+
+    ggtitle("Año 2011")
+
+grafico.2012 <- ggplot(data=copia.tiddy.dataset.2012, aes(x=copia.tiddy.dataset.2012$Area, y=copia.tiddy.dataset.2012$Streets, fill=copia.tiddy.dataset.2012$Year)) + 
+    geom_bar(colour="black",  width=.8, stat="identity") + 
+    guides(fill=FALSE) +
+    xlab("Area") + 
+    ylab("Num Streets")+
+    ggtitle("Año 2012")
+
+grid.arrange(grafico.2011, grafico.2012,ncol=2);
+```
+
+
+
+
+
+
