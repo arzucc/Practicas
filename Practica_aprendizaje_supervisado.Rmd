@@ -1,0 +1,138 @@
+---
+title: "Practica_aprendizaje_supervisado"
+author: "Arturo Casado Castilla"
+date: "31/12/2016"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+
+## 1.Preparación y procesado de los datos.
+
+Primero cargo las librerias que voy a utilizar.
+
+```{r, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE);
+
+ls();
+rm(list=ls());
+currentDir <- getwd();
+if (!file.exists(currentDir)) {
+                 dir.create(currentDir);
+}
+
+#Cargo las librerías necesarias
+librerias <- c("mlbench","caret","randomForest","stringr","dplyr","zoo","tm","ggplot2","gridExtra");
+for (i in librerias){
+    if(!require(i, character.only = TRUE)) 
+            { 
+                install.packages(i); 
+                library(i);
+            }
+}
+
+```
+
+Cargo el dataset Sonar y creo dos particiones: Train y Test
+
+```{r}
+#Cargo el dataset
+data(Sonar);
+
+#Hago la partición: train y test
+index.Train.Sonar <- createDataPartition(Sonar[,61], p=0.8, list=F)
+train.Sonar <- Sonar[index.Train.Sonar,]
+test.Sonar <- Sonar[ -index.Train.Sonar, ]
+
+#Compruebo las proporciones
+prop.table( table(Sonar[,61]))
+prop.table( table(train.Sonar[,61]))
+prop.table( table(test.Sonar[,61]))
+
+#Compruebo las dimensiones
+dim(index.Train.Sonar)
+dim(train.Sonar)
+dim(test.Sonar)
+```
+
+
+
+## 2.Para el clasificador k-NN, obtener el porcentaje de error y el índice kappa utilizando ten fold cross-validation. 
+Determinar el valor de k óptimo.
+
+```{r}
+#k-NN
+knn.sonar.control <- trainControl(method="repeatedcv", repeats=5)
+knn.grid <- expand.grid( k = 1:10)
+
+knn.Sonar <- train(Class ~ ., data = train.Sonar, method="knn", tuneGrid=knn.grid, tuneLength=10, trControl=knn.sonar.control)
+knn.Sonar
+
+knn.plot <- plot( knn.Sonar, metric="Kappa")
+knn.plot
+
+#Area bajo la curva ROC
+roc.knn.sonar.control <- trainControl(method="repeatedcv", repeats=5, classProbs = TRUE)
+roc.knn.grid <- expand.grid( k = 1:10)
+
+roc.knn.Sonar <- train(Class ~ ., data = train.Sonar, method="knn", tuneGrid=roc.knn.grid, tuneLength=10, trControl=roc.knn.sonar.control, metric="ROC")
+
+roc.knn.Sonar
+
+plot(roc.knn.Sonar)
+
+```
+
+
+## 3.Para el clasificador C-SVM con kernel lineal, obtener el porcentaje de error y el
+índice kappa utilizando ten fold cross-validation. 
+Determinar el valor óptimo para el parámetro C.
+```{r}
+svm.sonar.control <- trainControl(method="repeatedcv", repeats=5)
+
+svm.Sonar <- train(Class ~ ., data = train.Sonar, method="svmRadial", tuneLength=10, trControl=svm.sonar.control)
+svm.Sonar
+svm.plot <- plot( svm.Sonar, metric="Kappa")
+svm.plot
+
+
+```
+
+
+## 4.Repetir el proceso anterior pero utilizando kernel no lineal RBF. Obtener los pará-
+metros óptimos. ¿ Qué podría comentar ?
+```{r}
+svm.no.lineal.control <- trainControl(method="repeatedcv", repeats=5)
+svm.no.lineal <- train(Class ~ ., data = train.Sonar, method="svmRadial", tuneLength=10, trControl=svm.no.lineal.control)
+svm.no.lineal
+plot3 <- plot( svm.no.lineal, metric="Kappa")
+plot3
+```
+
+## 5.Para el clasificador Random Forest, obtener el porcentaje de error y el índice kappa
+utilizando ten fold cross-validation. Comentar el resultado y compararlo con los
+anteriores.
+```{r}
+varNames <- names(train.Sonar)
+varNames <- varNames[!varNames %in% c("y")]
+varNames1 <- paste(varNames, collapse = "+")
+
+rf.form <- as.formula(paste("y", varNames1, sep = " ~ "))
+
+rf.Sonar <- randomForest(Class ~ .,train.Sonar,ntree=500,importance=T)
+
+plot(rf.Sonar)
+
+```
+
+## 6.Voluntario: 
+Comparar los diferentes modelos y hacer una recomendación, si es posible, para esta aplicación.
+
+```{r}
+modelos <- list( knn.Sonar, svm.Sonar, svm.no.lineal )
+cv.samples <- resamples(modelos )
+summary( cv.samples )
+```
+
